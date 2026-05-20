@@ -94,7 +94,8 @@ dijkstra-map-navigator/
 │   ├── style.css                CSS 样式（深色科技风主题）
 │   └── script.js                JS 核心脚本（Cytoscape.js + 通信）
 │
-├── prompts/                     AI 提示词模板
+├── maps/                       多城市地图数据
+│   └── shanghai.txt             上海地图
 │   └── city_map_generator.md     城市地图生成器（生成其他城市地图）
 │
 ├── data/                        共享数据
@@ -190,9 +191,19 @@ python server.py 8080 --debug
 
 ## API 接口
 
+### GET /api/maps
+
+返回可用城市列表。
+
+**响应示例**：
+
+```json
+["shanghai", "beijing"]
+```
+
 ### GET /api/map
 
-返回地图数据（地点列表和道路列表）。
+返回地图数据。支持 `?city=` 参数选择城市（对应 `maps/<city>.txt`），省略时使用 `data/map.txt`。
 
 **响应示例**：
 
@@ -209,8 +220,9 @@ python server.py 8080 --debug
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| start | int | 起点顶点索引（0-19） |
-| end | int | 终点顶点索引（0-19） |
+| start | int | 起点顶点索引 |
+| end | int | 终点顶点索引 |
+| city | string | 可选，城市名（对应 `maps/<city>.txt`） |
 
 **响应示例**：
 
@@ -237,11 +249,9 @@ python server.py 8080 --debug
 
 ## 预设地图数据
 
-默认地图为**上海**，20 个地点、40+ 条道路：
+项目支持**多个城市地图**，启动时通过下拉框切换。地图文件存放在 `maps/` 目录，默认包含**上海**（20 个地点、40+ 条道路）。
 
-**地点**：上海火车站、人民广场、外滩、南京东路、陆家嘴、东方明珠、豫园、徐家汇、上海交通大学、上海体育馆、虹桥机场、虹桥火车站、上海南站、世博园、张江高科技园区、上海科技馆、复旦大学、五角场、迪士尼乐园、浦东国际机场
-
-> **地图是可修改的！** 想要北京、东京、纽约……任何城市的地图？把 `prompts/city_map_generator.md` 的内容发给任意 AI（网页版或 Claude Code / Cursor / Trae 等编程工具均可），将生成的 `map.txt` 替换 `data/map.txt`，刷新浏览器即可切换城市。使用编程工具可直接让 AI 写到文件，更方便。
+> **想添加新城市？** 把 `prompts/city_map_generator.md` 的内容发给任意 AI（网页版或 Claude Code / Cursor / Trae 等编程工具均可），将生成的 `map.txt` 放入 `maps/` 目录（如 `maps/beijing.txt`），刷新浏览器即可在下拉框中看到新城市。使用编程工具可直接让 AI 写到文件，更方便。
 
 **路网示意**：
 

@@ -51,8 +51,9 @@ DEFAULT_PORT = 8080
 BACKEND_EXE  = "map_navigation_backend"       # C 后端可执行文件名
 BACKEND_DIR  = "backend"                       # C 后端所在目录
 FRONTEND_DIR = "frontend"                      # 前端静态文件目录
-MAP_FILE     = "data/map.txt"                  # 地图数据文件（相对于项目根目录）
-RESULT_FILE  = "data/result.json"              # 结果 JSON 文件（相对于项目根目录）
+MAP_FILE     = "data/map.txt"                  # 默认地图数据文件
+MAPS_DIR     = "maps"                         # 多城市地图目录
+RESULT_FILE  = "data/result.json"              # 结果 JSON 文件
 
 # 项目根目录 = server.py 所在目录的上一级
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -86,11 +87,30 @@ def find_backend_exe():
     return str(backend_dir / BACKEND_EXE)
 
 
-def parse_map_file():
+def list_cities():
     """
-    解析 data/map.txt，返回 {"locations": [...], "roads": [[from,to,weight],...]}
+    扫描 maps/ 目录，返回可用城市列表（不含 .txt 扩展名）
     """
-    map_path = PROJECT_ROOT / MAP_FILE
+    maps_dir = PROJECT_ROOT / MAPS_DIR
+    cities = []
+    if maps_dir.is_dir():
+        for f in maps_dir.iterdir():
+            if f.suffix == '.txt':
+                cities.append(f.stem)
+    return sorted(cities)
+
+
+def parse_map_file(city=None):
+    """
+    解析地图文件，返回 {"locations": [...], "roads": [[from,to,weight],...]}
+
+    参数:
+        city (str or None): 城市名，对应 maps/<city>.txt。None 时使用默认 data/map.txt。
+    """
+    if city:
+        map_path = PROJECT_ROOT / MAPS_DIR / f"{city}.txt"
+    else:
+        map_path = PROJECT_ROOT / MAP_FILE
     locations = []
     roads = []
 
@@ -112,11 +132,11 @@ def parse_map_file():
         log(f"地图文件不存在: {map_path}", "ERR")
         return {"locations": [], "roads": []}
 
-    log(f"地图加载完成: {len(locations)} 个地点, {len(roads)} 条道路", "OK")
+    log(f"地图加载完成 ({city or '默认'}): {len(locations)} 个地点, {len(roads)} 条道路", "OK")
     return {"locations": locations, "roads": roads}
 
 
-def run_c_backend(start, end):
+def run_c_backend(start, end, city=None):
     """
     调用 C 后端计算最短路径
 
@@ -128,7 +148,10 @@ def run_c_backend(start, end):
         dict: 包含 distance, path, start, end, status 的结果字典
     """
     exe_path = find_backend_exe()
-    map_path = str(PROJECT_ROOT / MAP_FILE)
+    if city:
+        map_path = str(PROJECT_ROOT / MAPS_DIR / f"{city}.txt")
+    else:
+        map_path = str(PROJECT_ROOT / MAP_FILE)
     result_path = str(PROJECT_ROOT / RESULT_FILE)
 
     # 确保 data/ 目录存在
@@ -218,7 +241,12 @@ class NavHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # ---- API 路由: /api/map (地图数据) ----
         if parsed.path == '/api/map':
-            self.handle_api_map()
+            self.handle_api_map(parsed)
+            return
+
+        # ---- API 路由: /api/maps (可用城市列表) ----
+        if parsed.path == '/api/maps':
+            self.handle_api_maps()
             return
 
         # ---- 静态文件服务 ----
@@ -244,18 +272,26 @@ class NavHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             })
             return
 
-        log(f"收到查询请求: start={start}, end={end}", "INFO")
+        log(f"收到查询请求: start={start}, end={end}, city={params.get('city', ['默认'])[0]}", "INFO")
 
-        # 调用 C 后端
-        result = run_c_backend(start, end)
+        # 调用 C 后端（传入城市参数选择对应地图文件）
+        city = params.get('city', [None])[0]
+        result = run_c_backend(start, end, city)
 
         # 返回结果
         self.send_json_response(200, result)
 
-    def handle_api_map(self):
-        """返回地图数据（地点列表和道路列表）"""
-        data = parse_map_file()
+    def handle_api_map(self, parsed):
+        """返回地图数据（支持 ?city= 参数选择城市）"""
+        params = urllib.parse.parse_qs(parsed.query)
+        city = params.get('city', [None])[0]
+        data = parse_map_file(city)
         self.send_json_response(200, data)
+
+    def handle_api_maps(self):
+        """返回可用城市列表"""
+        cities = list_cities()
+        self.send_json_response(200, cities)
 
 
     def send_json_response(self, status_code, data):

@@ -31,6 +31,9 @@ let LOCATIONS = [];
 /** 道路数组 [起点索引, 终点索引, 距离] — 从服务端 /api/map 动态加载 */
 let ROADS = [];
 
+/** 当前选中的城市 */
+let currentCity = null;
+
 /* ================================================================
  * 第 2 部分：距离比例布局算法 (Distance-Proportional Layout)
  *
@@ -607,7 +610,7 @@ async function calculateRoute() {
         markStartEnd(startIdx, endIdx);
 
         // ---- 第 3 步：调用后端 API ----
-        const apiUrl = `/api/route?start=${startIdx}&end=${endIdx}`;
+        const apiUrl = `/api/route?start=${startIdx}&end=${endIdx}&city=${encodeURIComponent(currentCity)}`;
         console.log(`[请求] ${apiUrl}`);
 
         const response = await fetch(apiUrl);
@@ -836,21 +839,79 @@ function showToast(message, type = 'success') {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[启动] 地图导航系统前端初始化...');
 
-    // 从服务端加载地图数据
+    // 第 1 步：加载可用城市列表
+    let cities = [];
     try {
-        const resp = await fetch('/api/map');
+        const resp = await fetch('/api/maps');
+        if (resp.ok) {
+            cities = await resp.json();
+        }
+    } catch (err) {
+        console.error('[错误] 加载城市列表失败:', err);
+        return;
+    }
+
+    if (cities.length === 0) {
+        console.error('[错误] maps/ 目录下没有地图文件，请先添加城市地图。');
+        return;
+    }
+
+    console.log(`[数据] 可用城市: ${cities.join(', ')}`);
+
+    // 第 2 步：填充城市选择器
+    const citySelect = document.getElementById('citySelect');
+    citySelect.innerHTML = '';
+    for (const city of cities) {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city;
+        citySelect.appendChild(opt);
+    }
+
+    // 默认选中上海（如果存在），否则第一个
+    const defaultCity = cities.includes('shanghai') ? 'shanghai' : cities[0];
+    citySelect.value = defaultCity;
+
+    // 第 3 步：加载默认城市地图
+    await loadCity(defaultCity);
+
+    // 第 4 步：城市切换事件
+    citySelect.addEventListener('change', async () => {
+        await loadCity(citySelect.value);
+    });
+
+    console.log('[就绪] 系统初始化完成，等待用户操作。');
+});
+
+/**
+ * 加载指定城市的地图数据并重建 Cytoscape 图
+ */
+async function loadCity(city) {
+    currentCity = city;
+    console.log(`[加载] 城市: ${city}`);
+
+    // 加载地图数据
+    try {
+        const resp = await fetch(`/api/map?city=${encodeURIComponent(city)}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         LOCATIONS = data.locations || [];
         ROADS = data.roads || [];
-        console.log(`[数据] 从服务端加载: ${LOCATIONS.length} 个地点, ${ROADS.length} 条道路`);
+        console.log(`[数据] ${LOCATIONS.length} 个地点, ${ROADS.length} 条道路`);
     } catch (err) {
-        console.error('[错误] 加载地图数据失败:', err);
+        console.error(`[错误] 加载城市 "${city}" 地图数据失败:`, err);
         return;
     }
 
-    // 初始化 Cytoscape.js
-    initCytoscape();
+    // 销毁旧图
+    if (cy) {
+        cy.destroy();
+        cy = null;
+    }
 
-    console.log('[就绪] 系统初始化完成，等待用户操作。');
-});
+    // 重置结果
+    hideResult();
+
+    // 重建图
+    initCytoscape();
+}

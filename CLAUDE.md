@@ -48,7 +48,7 @@ Browser ◀──────────── JSON response ──────
 ```
 
 - **C backend** (`backend/`): Adjacency-matrix graph (`Graph` struct, max 20 vertices), Dijkstra O(V²), hand-rolled JSON output (no third-party JSON library). The executable takes start/end indices as CLI args and writes `result.json`.
-- **Python bridge** (`server.py`): Extends `SimpleHTTPRequestHandler`, serves static files from `frontend/`, proxies `/api/route` to the C backend subprocess, and serves map data via `/api/map`. Zero pip dependencies.
+- **Python bridge** (`server.py`): Extends `SimpleHTTPRequestHandler`, serves static files from `frontend/`, proxies `/api/route` to the C backend subprocess, serves map data via `/api/map` and `/api/maps`. Zero pip dependencies.
 - **Frontend** (`frontend/`): Cytoscape.js graph visualization with a custom distance-proportional force-directed layout (not Cytoscape's built-in layouts). The layout iteratively applies spring forces so that visual edge length ≈ real road distance × scaling factor.
 
 ## Key implementation details
@@ -59,7 +59,9 @@ The Dijkstra algorithm logic exists in **two places**: `backend/src/dijkstra.c` 
 ### Map data
 The single source of truth is `data/map.txt` — loaded by both the C backend and served to the frontend via the `/api/map` endpoint. The frontend fetches it dynamically at page load, so there's no duplicated data to maintain.
 
-To generate a map for a different city, use the prompt template at `prompts/city_map_generator.md` with any AI — it produces `map.txt` for the target city. Replace `data/map.txt` with the output and the frontend will pick it up automatically via `/api/map`.
+Multiple city maps are stored in `maps/` directory (e.g., `maps/shanghai.txt`). The frontend supports switching cities at runtime via the city selector. The `/api/maps` endpoint returns available cities, and `/api/map?city=X` loads a specific city.
+
+To generate a map for a different city, use the prompt template at `prompts/city_map_generator.md` with any AI — it produces `map.txt` for the target city. Place the file in `maps/<city>.txt` and it will appear in the frontend's city selector automatically.
 
 ### Graph is undirected
 `addEdge()` sets `edge[start][end] = edge[end][start] = weight` — the graph is always undirected. `INF` (99999) represents no edge, `0` represents self-loops (diagonal).

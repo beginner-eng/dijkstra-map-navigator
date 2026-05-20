@@ -121,4 +121,4 @@ E 1 2 5
 
 ## 生成后如何使用
 
-将输出的 `map.txt` 替换项目中的 `data/map.txt`，前端会自动通过 `/api/map` 加载新地图数据，无需手动修改 `script.js`。
+将输出的 `map.txt` 放入项目的 `maps/` 目录，文件名改为城市名（如 `maps/beijing.txt`、`maps/tokyo.txt`）。刷新浏览器后，该城市会出现在下拉框中，无需修改任何代码。
