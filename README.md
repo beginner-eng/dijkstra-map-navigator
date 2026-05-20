@@ -1,5 +1,10 @@
 # 地图导航系统 (Map Navigation System)
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Language](https://img.shields.io/badge/backend-C99-555555.svg)](backend/)
+[![Frontend](https://img.shields.io/badge/frontend-Vanilla%20JS%20%2B%20Cytoscape.js-4ec9b0.svg)](frontend/)
+[![Python](https://img.shields.io/badge/bridge-Python%203-3776ab.svg)](server.py)
+
 > 基于 **图数据结构 + Dijkstra 最短路径算法** 的全栈地图导航系统
 >
 > 后端：C 语言 | 前端：HTML/CSS/JS + Cytoscape.js | 桥接：Python
@@ -89,11 +94,15 @@ map_navigation/
 │   ├── style.css                CSS 样式（深色科技风主题）
 │   └── script.js                JS 核心脚本（Cytoscape.js + 通信）
 │
+├── prompts/                     AI 提示词模板
+│   └── city_map_generator.md     城市地图生成器（生成其他城市地图）
+│
 ├── data/                        共享数据
 │   ├── map.txt                  地图定义（20地点 + 40+道路）
-│   └── result.json              查询结果（C 生成 → JS 读取）
+│   └── result.json              查询结果（C 生成 → 运行时产生）
 │
 ├── server.py                    Python 桥接服务器
+├── .gitignore                   Git 忽略规则
 └── README.md                    本文件
 ```
 
@@ -151,6 +160,12 @@ python server.py 8080 --debug
 
 ---
 
+## 界面预览
+
+![界面截图](docs/screenshot.png)
+
+---
+
 ## 功能列表
 
 | 功能 | 前端 | 后端 |
@@ -188,11 +203,11 @@ python server.py 8080 --debug
 
 ```json
 {
-  "distance": 25,
-  "start": "火车站",
-  "end": "机场",
-  "path": ["火车站", "机场"],
-  "pathIndices": [0, 8],
+  "distance": 12,
+  "start": "上海火车站",
+  "end": "陆家嘴",
+  "path": ["上海火车站", "人民广场", "外滩", "陆家嘴"],
+  "pathIndices": [0, 1, 2, 4],
   "status": "ok"
 }
 ```
@@ -218,17 +233,15 @@ python server.py 8080 --debug
 **路网示意**：
 
 ```
-  大学城 ── 机场 ── 高铁站 ── 植物园
-    │                  │
-  理工大学 ── 市政府 ── 高新区
-    │  │       │  │
-  火车站 ─ 中心广场 │ 体育中心
-    │         │     │
-  滨江公园  商业中心 万达广场
-    │         │     │
-  人民公园  图书馆  人民公园
-    │         │     │
-  会展中心 ─ 动物园 ─ 植物园
+     虹桥机场 ── 虹桥火车站 ── 上海火车站
+        │            │              │
+        │        上海南站       人民广场 ── 南京东路 ── 外滩
+        │            │            │  │                    │
+        └────── 徐家汇 ────────── 豫园                 陆家嘴 ── 东方明珠
+                  │  │                                   │
+            上海交大 上海体育馆                   世博园 ─ 张江 ─ 上海科技馆
+                  │                                      │        │
+            复旦大学 ── 五角场                      浦东机场   迪士尼
 ```
 
 ---
